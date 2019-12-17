@@ -1,4 +1,6 @@
  # Instabot Trader
+ 
+ this is my attempt to learn this space so the content in this repo is "use at your own risk" as i know i will make mistakes here.
 
 [![Build Status](https://travis-ci.org/instabot42/instabot-trader.svg?branch=master)](https://travis-ci.org/instabot42/instabot-trader)
 
