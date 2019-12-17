@@ -1,0 +1,74 @@
+{
+  "credentials": [
+    {
+      "name": "deribit",
+      "exchange": "deribit",
+      "key": "api-key",
+      "secret": "api-secret",
+      "testner": "true/false"
+    },
+    {
+      "name": "bitfinex",
+      "exchange": "bitfinex",
+      "key": "api-key",
+      "secret": "api-secret",
+      "margin": false,
+      "maxLeverage": 1,
+      "drawFills": false,
+      "largeFillSize": 10
+    },
+    {
+      "name": "bfxmargin",
+      "exchange": "bitfinex",
+      "key": "api-key",
+      "secret": "api-secret",
+      "margin": true,
+      "maxLeverage": 2,
+      "drawFills": false,
+      "largeFillSize": 10
+    },
+    {
+      "name": "coinbase",
+      "exchange": "coinbase",
+      "endpoint": "https://api.pro.coinbase.com",
+      "key": "api-key",
+      "secret": "api-secret",
+      "passphrase": "secret-passphrase"
+    }
+  ],
+  "sms": {
+    "from": "123",
+    "to": "123",
+    "twilio": {
+      "key": "api-key",
+      "secret": "api-secret"
+    }
+  },
+  "slack": {
+    "webhook": ""
+  },
+  "telegram": {
+    "botToken": "",
+    "safeUser": 0,
+    "shortcuts": [
+      { "name": "example", "message": "This is an example message"}
+    ]
+  },
+  "webhook": {
+    "url": ""
+  },
+  "notifications": {
+    "default": [],
+    "alertOnStartup": false
+  },
+  "server": {
+    "url": "/trade",
+    "healthCheck": "/health",
+    "port": 3000,
+    "logLevel": 1,
+    "security": {
+      "signingMethod": "password",
+      "secret": "brownie"
+    }
+  }
+}
