@@ -1,0 +1,108 @@
+FLOW
+process starts at 
+    D:\instabot42DOA\instabot-trader\package.json
+    and if user executes START (via the npm run function) the package.json will execute the START SCRIPT
+        "start": "node src/index.js",
+
+then the     "start": "node src/index.js", says
+
+
+
+// this is what i see needing to be done
+//  1) add a api call to get the current position from exchange
+//  2) add function in the conttinue if area to add
+//       1) continue if position greater than x long or y short
+//       2) continue if position is in profit
+//  
+
+
+// A) from deribit.js
+ <!-- // % and %% supported for some symbols.
+        if ((amount.units === '%') || (amount.units === '%%')) {
+            const ticker = await this.api.ticker(symbol);
+            const sd = this.symbolData.find(symbol);
+
+            const regex = /^(.{3})-(.*)/u;
+            const m = regex.exec(symbol);
+            if (m) {
+                const account = await this.api.account(m[1]);
+                const funds = (amount.units === '%') ? account.marginBalance : account.availableFunds;
+                const price = parseFloat(side === 'buy' ? ticker.bid : ticker.ask);
+                const dollarValue = this.roundAsset(symbol, price * (amount.value / 100) * funds);
+                amount.value = this.roundAsset(symbol, dollarValue / sd.contractSize);
+                amount.units = '';
+            }
+        } -->
+
+// B) D:\instabot42DOA\instabot-trader\src\exchanges\deribit.js
+     * Look for valid units of quantity...
+     * 12, 12btc, 12usd, 12% (% of total funds) or 12%% (% of available funds)
+     * @param qty
+     * @returns {*}
+     */
+    parseQuantity(qty) {
+        const regex = /^([0-9]+(\.[0-9]+)?)\s*([a-zA-Z]+|%{1,2})?$/;
+        const m = regex.exec(qty);
+        if (m) {
+            return { value: parseFloat(m[1]), units: m[3] === undefined ? '' : m[3] };
+        }
+
+        // Does not look like a valid quantity, so treat it as zero, as that is safest
+        return { value: 0, units: '' };
+    }
+
+    /**
+     * Treat a number as a number or percentage. (0.01 or 1% both return 0.01)
+     * @param value
+     * @returns {number}
+     */
+    parsePercentage(value) {
+        const regex = /^([0-9]+(\.[0-9]+)?)\s*(%{1,2})?$/;
+        const m = regex.exec(value);
+        if (m) {
+            return parseFloat(m[1]) * (m[3] === '%' ? 0.01 : 1);
+        }
+
+        // Does not look like a valid quantity, so treat it as zero, as that is safest
+        return 0;
+    }
+
+//  C) D:\instabot42DOA\instabot-trader\src\exchanges\exchange.js
+calcOrderSize(symbol, side, amount, balances, price) {
+        const asset = this.splitSymbol(symbol);
+        const total = this.balanceTotalAsset(symbol, balances, price);
+        const available = this.balanceAvailableAsset(symbol, balances, price, side);
+
+        // calculate the order size (% or absolute, within limits, rounded)
+        let orderSize = amount.value;
+        if (amount.units === '%') orderSize = total * (amount.value / 100);
+        if (amount.units === '%%') orderSize = available * (amount.value / 100);
+        if (amount.units.toLowerCase() === asset.currency) orderSize = amount.value / price;
+
+        // remember the order size before we cap and reduce it
+        const rawOrderSize = orderSize;
+
+        // make sure it's no more than what we have available.
+        orderSize = orderSize > available ? available : orderSize;
+
+        // Prevent silly small orders
+        const minOrderSize = this.symbolData.minOrderSize(symbol);
+        if (orderSize < minOrderSize) {
+            logger.results(`ordersize ${orderSize} is below min order size of ${minOrderSize}`);
+            orderSize = 0;
+        }
+
+//   D) D:\instabot42DOA\instabot-trader\test\balance_test.js
+
+        // Try and buy 2 when there is enough to do that.
+        const amount = exchange.parseQuantity('10%%');
+        const price = exchange.calcOrderSize('BTCUSD', 'buy', amount, balance, 6000);
+        assert.deepEqual(price, expected);
+    });
+
+//   E) D:\instabot42DOA\instabot-trader\src\exchanges\exchange.js
+// and some support functions
+const scaledOrderSize = require('./support/scaled_order_size');
+const ticker = require('./support/ticker');
+const accountBalances = require('./support/account_balances');
+ maybe add the const positionsize = require(...........position); (sort of0)
