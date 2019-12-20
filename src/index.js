@@ -16,7 +16,7 @@ const startTime = new Date();
 logger.bright('\n');
 logger.bright('=================================================\n');
 logger.bright('  Instabot Trader bot starting  🤖  🚀  🌔  🏎️ \n');
-logger.bright('  Tip BTC: 3NFKTZwmTmvyieXyez5wfegfqK2mipoWwW\n');
+logger.bright('  Tip BTC: 3Q6g4UjgP32uL8SNQkXEPaUE3TBjFg2RJs\n');
 logger.bright('=================================================\n');
 logger.results(`\nStarted at ${startTime}\n`);
 
