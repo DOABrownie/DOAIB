@@ -1,6 +1,9 @@
  # Instabot Trader
- 
- this is my attempt to learn this space so the content in this repo is "use at your own risk" as i know i will make mistakes here.
+ This Repo of Instabot Trader does not work on Deribit Test net only live net.
+ I havent tried it on the other exchanges so caution
+ we are trying to make a new Market Maker mode and it is in development and as such has many bugs and errors when running so please use at own risk. 
+
+  this is my attempt to learn this space so the content in this repo is "use at your own risk" as i know i will make mistakes here.
 
 [![Build Status](https://travis-ci.org/instabot42/instabot-trader.svg?branch=master)](https://travis-ci.org/instabot42/instabot-trader)
 
