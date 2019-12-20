@@ -19,6 +19,8 @@ module.exports = async (context, args) => {
         askCount: '0',
 
         spread: '30',
+        bidSpread: '10',
+        askSpread: '10',
         autoBalance: 'none',
         autoBalanceEvery: '0',
 
@@ -38,12 +40,18 @@ module.exports = async (context, args) => {
 
     // get the spread
     p.spread = Math.max(parseFloat(p.spread), 0);
+    p.bidSpread = Math.max(parseFloat(p.bidSpread), 0);
+    p.askSpread = Math.max(parseFloat(p.askSpread), 0);
+
+    const bs = p.autoBalance === 'track' ? p.bidSpread : p.spread;
+    const as = p.autoBalance === 'track' ? p.askSpread : p.spread;
+    const reduce = p.autoBalance === 'track' ? true : false;
 
     // Work out other values that will be useful
-    p.bidFrom = (p.spread / 2) + p.bidStep;
+    p.bidFrom = (bs / 2) + p.bidStep;
     p.bidTo = p.bidFrom + ((p.bidCount - 1) * p.bidStep);
 
-    p.askFrom = (p.spread / 2);
+    p.askFrom = (as / 2);
     p.askTo = p.askFrom + ((p.askCount - 1) * p.askStep);
 
     p.bidTotal = ex.roundAsset(symbol, p.bidAmount * p.bidCount);
@@ -60,6 +68,8 @@ module.exports = async (context, args) => {
     p.pingAmount = p.bidAmount;
     p.pongAmount = p.askAmount;
     p.pongDistance = p.spread;
+    p.bidDistance = p.bidSpread;
+    p.askDistance = p.askSpread;
 
     // show a little progress
     logger.progress(`MARKET MAKER ORDER - ${ex.name}`);
@@ -88,6 +98,8 @@ module.exports = async (context, args) => {
     // report the data we are actually going to use
     logger.progress(p);
 
+    const bidTag = p.autoBalance === 'track' ? 'bids' : p.tag;
+
     // step one - place the bids
     const bidArgs = [
         { name: 'from', value: p.bidFrom, index: 0 },
@@ -96,10 +108,11 @@ module.exports = async (context, args) => {
         { name: 'amount', value: String(p.bidTotal), index: 3 },
         { name: 'side', value: 'buy', index: 4 },
         { name: 'easing', value: 'linear', index: 5 },
-        { name: 'tag', value: p.tag, index: 6 },
+        { name: 'tag', value: bidTag, index: 6 },
     ];
     const bids = await scaledOrder(context, bidArgs);
 
+    const askTag = p.autoBalance === 'track' ? 'asks' : p.tag;
     // step two - place the asks
     const askArgs = [
         { name: 'from', value: p.askFrom, index: 0 },
@@ -108,7 +121,7 @@ module.exports = async (context, args) => {
         { name: 'amount', value: String(p.askTotal), index: 3 },
         { name: 'side', value: 'sell', index: 4 },
         { name: 'easing', value: 'linear', index: 5 },
-        { name: 'tag', value: p.tag, index: 6 },
+        { name: 'tag', value: askTag, index: 6 },
     ];
     const asks = await scaledOrder(context, askArgs);
 

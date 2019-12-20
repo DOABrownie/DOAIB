@@ -1,4 +1,6 @@
 const uuid = require('uuid/v4');
+const scaledOrder = require('./scaled_order');
+const cancelTag = require('../cancel_orders.js');
 const logger = require('../../../common/logger').logger;
 
 /**
@@ -97,11 +99,48 @@ async function shuffleBook(context, p, orders, stepSize) {
     return cleanOrderList(orders);
 }
 
+// Green or Red mode
+async function trackPrice(context, p, orders, spread) {
+    const { ex = {}, symbol = {} } = context;
+
+    // We only want to make changes if the price gets far enough away from the orders
+    const ticker = await ex.api.ticker(symbol);
+    const midPrice = (parseFloat(ticker.bid) + parseFloat(ticker.ask)) / 2;
+    const gap = Math.abs(orders[0].price - midPrice);
+
+    const dist = orders.side === 'buy' ? p.bidDistance : p.askDistance;
+
+    // If the price isn't far enough away, do nothing
+    if (gap < dist) {
+        return orders;
+    } else {
+
+        // we have work to do
+        logger.info(`Price has to far from sread: ${spread}`);
+        //logger.info(`top order: ${orders[0].price}, ticker: ${midPrice}, gap: ${gap}`);
+
+        // Cancel the order furthest from the current price
+        const toCancel = orders.pop();
+        await ex.api.cancelOrders([toCancel.order]);
+        logger.info(`Cancelled ping pong order: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
+
+        // and add a new one at the top, closer to the price
+        const price = toCancel.side === 'buy' ? parseFloat(ticker.bid) - dist : parseFloat(ticker.ask) + dist;
+        orders.push(await placeLimitOrder(context, toCancel.side, price, toCancel.amount, p.tag));
+        logger.info(`Placed a new order: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
+        // keep it in order
+        return cleanOrderList(orders);
+    }
+}
+
 /**
  * Ping Pong Loop handler
  */
 module.exports = async (context, startingPings, startingPongs, p, autoBalance) => {
-    const { ex = {}, session = '' } = context;
+    const { ex = {}, symbol = {}, session = '' } = context;
+
+    const ticker = await ex.api.ticker(symbol);
+    const midPrice = (parseFloat(ticker.bid) + parseFloat(ticker.ask)) / 2;
 
     // Get the finds and pongs into order
     let pongs = cleanOrderList(startingPongs);
@@ -136,12 +175,16 @@ module.exports = async (context, startingPings, startingPongs, p, autoBalance) =
         if (pings.length) {
             pings.sort((a, b) => (a.side === 'buy' ? b.price - a.price : a.price - b.price));
             const firstPing = pings[0];
+            const bottomPing = pings[pings.length - 1];
             const orderInfo = await ex.api.order(firstPing.order);
             if (orderInfo.is_filled) {
-                logger.results(`Ping Pong order: ping filled - ${firstPing.side} ${firstPing.amount} for ${firstPing.price}`);
-                pongs.push(await placeOppositeOrder(context, p, firstPing));
+                logger.results(`Ping Pong order: ping filled - ${firstPing.side} ${firstPing.amount} for ${firstPing.price}`);   
+                pings.push(await placeLimitOrder(context, bottomPing.side, bottomPing.price - p.pingStep, bottomPing.amount, p.tag));
                 pongs = cleanOrderList(pongs);
                 pings.shift();
+                if (autoBalance === 'flow') {
+                    pongs = await shuffleBook(context, p, pongs, p.pongStep);
+                }
                 waitTime = ex.minPollingDelay;
             } else if (!orderInfo.is_open) {
                 logger.results('Ping Pong order: found a cancelled order - discarding');
@@ -154,12 +197,16 @@ module.exports = async (context, startingPings, startingPongs, p, autoBalance) =
         if (p.endless && pongs.length) {
             pongs.sort((a, b) => (a.side === 'buy' ? b.price - a.price : a.price - b.price));
             const firstPong = pongs[0];
+            const topPong = pongs[pongs.length - 1];
             const orderInfo = await ex.api.order(firstPong.order);
             if (orderInfo.is_filled) {
                 logger.results(`Ping Pong order: pong filled - ${firstPong.side} ${firstPong.amount} for ${firstPong.price}`);
-                pings.push(await placeOppositeOrder(context, p, firstPong));
+                pongs.push(await placeLimitOrder(context, topPong.side, topPong.price + p.pongStep, topPong.amount, p.tag));
                 pings = cleanOrderList(pings);
                 pongs.shift();
+                if (autoBalance === 'flow') {
+                    pings = await shuffleBook(context, p, pings, p.pingStep);
+                }
                 waitTime = ex.minPollingDelay;
             } else if (!orderInfo.is_open) {
                 logger.results('Ping Pong order: found a cancelled order - discarding');
@@ -185,6 +232,16 @@ module.exports = async (context, startingPings, startingPongs, p, autoBalance) =
 
             // note the time that we last checked
             lastAutoBalance = Date.now();
+        }
+
+        if(autoBalance === 'track') {
+            const way = p.bidDistance < p.askDistance;
+            if (way) {
+                //trackPrice(context, p, orders, a, c, s, tag)
+                pings = await trackPrice(context, p, pings, p.bidDistance);
+            } else {
+                pongs = await trackPrice(context, p, pongs, p.askDistance);
+            }
         }
 
         // wait for a bit before deciding what to do next
