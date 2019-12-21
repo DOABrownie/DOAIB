@@ -43,9 +43,9 @@ module.exports = async (context, args) => {
     p.bidSpread = Math.max(parseFloat(p.bidSpread), 0);
     p.askSpread = Math.max(parseFloat(p.askSpread), 0);
 
-    const bs = p.autoBalance === 'track' ? p.bidSpread : p.spread;
-    const as = p.autoBalance === 'track' ? p.askSpread : p.spread;
-    const reduce = p.autoBalance === 'track' ? true : false;
+    const bs = p.autoBalance === ('track' || 'flow') ? p.bidSpread : p.spread;
+    const as = p.autoBalance === ('track' || 'flow') ? p.askSpread : p.spread;
+    //const reduce = p.autoBalance === 'track' ? true : false;
 
     // Work out other values that will be useful
     p.bidFrom = (bs / 2) + p.bidStep;
@@ -98,7 +98,6 @@ module.exports = async (context, args) => {
     // report the data we are actually going to use
     logger.progress(p);
 
-    const bidTag = p.autoBalance === 'track' ? 'bids' : p.tag;
 
     // step one - place the bids
     const bidArgs = [
@@ -108,11 +107,10 @@ module.exports = async (context, args) => {
         { name: 'amount', value: String(p.bidTotal), index: 3 },
         { name: 'side', value: 'buy', index: 4 },
         { name: 'easing', value: 'linear', index: 5 },
-        { name: 'tag', value: bidTag, index: 6 },
+        { name: 'tag', value: p.tag, index: 6 },
     ];
     const bids = await scaledOrder(context, bidArgs);
 
-    const askTag = p.autoBalance === 'track' ? 'asks' : p.tag;
     // step two - place the asks
     const askArgs = [
         { name: 'from', value: p.askFrom, index: 0 },
@@ -121,7 +119,7 @@ module.exports = async (context, args) => {
         { name: 'amount', value: String(p.askTotal), index: 3 },
         { name: 'side', value: 'sell', index: 4 },
         { name: 'easing', value: 'linear', index: 5 },
-        { name: 'tag', value: askTag, index: 6 },
+        { name: 'tag', value: p.tag, index: 6 },
     ];
     const asks = await scaledOrder(context, askArgs);
 

@@ -3,6 +3,7 @@ const scaledOrder = require('./scaled_order');
 const cancelTag = require('../cancel_orders.js');
 const logger = require('../../../common/logger').logger;
 
+
 /**
  * Actually place the order
  * @param context
