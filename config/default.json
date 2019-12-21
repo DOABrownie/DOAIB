@@ -67,8 +67,8 @@
     "port": 3000,
     "logLevel": 1,
     "security": {
-      "signingMethod": "password",
-      "secret": "brownie"
+      "signingMethod": "",
+      "secret": ""
     }
   }
 }
