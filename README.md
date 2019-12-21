@@ -1,4 +1,5 @@
  # Instabot Trader
+ # HI BROWNIE
  This Repo of Instabot Trader does not work on Deribit Test net only live net.
  I havent tried it on the other exchanges so caution
  we are trying to make a new Market Maker mode and it is in development and as such has many bugs and errors when running so please use at own risk. 
