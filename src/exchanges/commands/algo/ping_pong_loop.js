@@ -109,14 +109,34 @@ async function trackPrice(context, p, orders, spread) {
     const gap = Math.abs(orders[0].price - midPrice);
 
     const dist = orders.side === 'buy' ? p.bidDistance : p.askDistance;
+    const step = orders.side === 'buy' ? p.pingStep : p.pongStep;
+    const price = orders.side === 'buy' ? parseFloat(ticker.bid) - dist : parseFloat(ticker.ask) + dist;
 
     // If the price isn't far enough away, do nothing
     if (gap < dist) {
         return orders;
-    } else {
+    } 
+    if (gap > dist && gap < step && orders[0].price !== price) {
 
         // we have work to do
-        logger.info(`Price has to far from sread: ${spread}`);
+        logger.info(`Price has moved to far from sread: ${spread}`);
+        //logger.info(`top order: ${orders[0].price}, ticker: ${midPrice}, gap: ${gap}`);
+
+        // Cancel the order furthest from the current price
+        const toCancel = orders[0];
+        await ex.api.cancelOrders([toCancel.order]);
+        logger.info(`Cancelled ping pong order: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
+
+        // and add a new one at the top, closer to the price
+        orders.push(await placeLimitOrder(context, toCancel.side, price, toCancel.amount, p.tag));
+        logger.info(`Placed a new order: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
+        // keep it in order
+        return cleanOrderList(orders);
+    }
+    if (gap > dist && gap > step) {
+
+        // we have work to do
+        logger.info(`Price has moved to far from sread: ${spread}`);
         //logger.info(`top order: ${orders[0].price}, ticker: ${midPrice}, gap: ${gap}`);
 
         // Cancel the order furthest from the current price
@@ -125,9 +145,9 @@ async function trackPrice(context, p, orders, spread) {
         logger.info(`Cancelled ping pong order: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
 
         // and add a new one at the top, closer to the price
-        const price = toCancel.side === 'buy' ? parseFloat(ticker.bid) - dist : parseFloat(ticker.ask) + dist;
-        orders.push(await placeLimitOrder(context, toCancel.side, price, toCancel.amount, p.tag));
-        logger.info(`Placed a new order: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
+        const pricePlusStep = toCancel.side === 'buy' ? parseFloat(ticker.bid) - step : parseFloat(ticker.ask) + step;
+        orders.push(await placeLimitOrder(context, toCancel.side, pricePlusStep, toCancel.amount, p.tag));
+        logger.info(`Placed a new order: ${toCancel.side} ${toCancel.amount} at ${toCancel.pricePlusStep}`);
         // keep it in order
         return cleanOrderList(orders);
     }
@@ -237,7 +257,6 @@ module.exports = async (context, startingPings, startingPongs, p, autoBalance) =
         if(autoBalance === 'track') {
             const way = p.bidDistance < p.askDistance;
             if (way) {
-                //trackPrice(context, p, orders, a, c, s, tag)
                 pings = await trackPrice(context, p, pings, p.bidDistance);
             } else {
                 pongs = await trackPrice(context, p, pongs, p.askDistance);
