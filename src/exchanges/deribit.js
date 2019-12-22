@@ -169,6 +169,14 @@ class Deribit extends Exchange {
             return openPositions.reduce((size, item) => ((item.instrument.toUpperCase() !== symbol.toUpperCase()) ? size : item.size), 0);
         });
     }
+
+    async unrealizedPnl() {
+        // Find current position.
+        return this.api.positions().then((floatingPl) => {
+            // Filter the results down to just hte symbol we are using
+            return floatingPl;
+        });
+    }
 }
 
 module.exports = Deribit;

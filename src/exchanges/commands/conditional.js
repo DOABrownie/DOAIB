@@ -75,10 +75,48 @@ async function dateTimeConditions(context, condition, value) {
 async function positionConditions(context, condition, value) {
     const { ex = {}, symbol = '' } = context;
 
+    const getCurrencyFromSymbol = (symbol) => {
+        const regex = /^(.{3})-(.*)/u;
+        const m = regex.exec(symbol);
+        if (m) {
+            return m[1];
+        }
+
+        // Default to btc / usd - not sure about this...
+        // should really just throw an error
+        return 'BTC';
+    };
+
+    const currency = getCurrencyFromSymbol(symbol);
+
+
     // Get the open position
     const position = await ex.positionSize(symbol);
     const target = parseFloat(value);
+    const unPnl = await ex.unrealizedPnl();
+    const fixed = unPnl[0].floatingPl.toFixed(6);
     logger.progress(`Current position size is ${position}`);
+
+    // Test agains Unrealized PNL
+    if (condition === 'inProfit') {
+        logger.progress(`Current UnPNL: ${fixed}`);
+        return unPnl > 0;
+    }
+
+    if (condition === 'inLoss') {
+        logger.progress(`Current UnPNL: ${fixed}`);
+        return unPnl < 0;
+    }
+
+    if (condition === 'inProfitBy') {
+        logger.progress(`Current UnPNL: ${fixed}, target UnPNL: ${target}`);
+        return unPnl > target;
+    }
+
+    if (condition === 'inLossBy') {
+        logger.progress(`Current UnPNL: ${fixed}, target UnPNL: ${target}`);
+        return unPnl < target;
+    }
 
     // Test against the position size
     if (condition === 'positionlessthan') {

@@ -408,6 +408,10 @@ class DeribitApi extends ApiInterface {
     positions() {
         return this.makeAuthRequest('/api/v1/private/positions', {});
     }
+
+    sessUrlPl(currency) {
+        return this.makeAuthRequest('/api/v1/private/positions', {});
+    }
 }
 
 module.exports = DeribitApi;

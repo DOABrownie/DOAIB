@@ -78,80 +78,60 @@ async function shuffleBook(context, p, orders, stepSize) {
     const midPrice = (parseFloat(ticker.bid) + parseFloat(ticker.ask)) / 2;
     const gap = Math.abs(orders[0].price - midPrice);
 
+    const opSide = orders.side === 'buy' ? 'sell' : 'buy';
+
     // If the price isn't far enough away, do nothing
     if (gap <= p.pongDistance) {
         return orders;
     }
 
-    // we have work to do
-    logger.info('Price has moved outside Ping pong order range');
-    logger.info(`top order: ${orders[0].price}, ticker: ${midPrice}, gap: ${gap}`);
+    logger.info(`FLOW : ${opSide} was filled, adjusting ${orders[0].side} orders`);
 
     // Cancel the order furthest from the current price
     const toCancel = orders.pop();
     await ex.api.cancelOrders([toCancel.order]);
-    logger.info(`Cancelled ping pong order: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
+    logger.info(`Cancelled furthest order from price: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
 
     // and add a new one at the top, closer to the price
     const price = toCancel.side === 'buy' ? orders[0].price + stepSize : orders[0].price - stepSize;
     orders.push(await placeLimitOrder(context, toCancel.side, price, toCancel.amount, p.tag));
+    logger.info(`Replaced with: ${toCancel.side} ${toCancel.amount} at ${price}`);
 
     // keep it in order
     return cleanOrderList(orders);
 }
 
-// Green or Red mode
-async function trackPrice(context, p, orders, spread) {
+async function trackPrice(context, p, orders, stepSize, dist) {
     const { ex = {}, symbol = {} } = context;
 
     // We only want to make changes if the price gets far enough away from the orders
     const ticker = await ex.api.ticker(symbol);
     const midPrice = (parseFloat(ticker.bid) + parseFloat(ticker.ask)) / 2;
     const gap = Math.abs(orders[0].price - midPrice);
+    const currentStep = orders[0].side === 'buy' ? gap - stepSize : gap + stepSize;
 
-    const dist = orders.side === 'buy' ? p.bidDistance : p.askDistance;
-    const step = orders.side === 'buy' ? p.pingStep : p.pongStep;
-    const price = orders.side === 'buy' ? parseFloat(ticker.bid) - dist : parseFloat(ticker.ask) + dist;
+    const opSide = orders.side === 'buy' ? 'sell' : 'buy';
 
-    // If the price isn't far enough away, do nothing
-    if (gap < dist) {
-        return orders;
-    } 
-    if (gap > dist && gap < step && orders[0].price !== price) {
+    // If the price - order > spread
+    if (gap > stepSize && orders[0].price !== currentStep && gap < 100) {
 
-        // we have work to do
-        logger.info(`Price has moved to far from sread: ${spread}`);
-        //logger.info(`top order: ${orders[0].price}, ticker: ${midPrice}, gap: ${gap}`);
+        logger.info(`TRACK : gap ${gap} > spread ${dist}, adjusting ${orders[0].side} closest order`);
 
-        // Cancel the order furthest from the current price
-        const toCancel = orders[0];
-        await ex.api.cancelOrders([toCancel.order]);
-        logger.info(`Cancelled ping pong order: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
-
-        // and add a new one at the top, closer to the price
-        orders.push(await placeLimitOrder(context, toCancel.side, price, toCancel.amount, p.tag));
-        logger.info(`Placed a new order: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
-        // keep it in order
-        return cleanOrderList(orders);
-    }
-    if (gap > dist && gap > step) {
-
-        // we have work to do
-        logger.info(`Price has moved to far from sread: ${spread}`);
-        //logger.info(`top order: ${orders[0].price}, ticker: ${midPrice}, gap: ${gap}`);
-
-        // Cancel the order furthest from the current price
+        // Cancel the order closest to the current price
         const toCancel = orders.pop();
         await ex.api.cancelOrders([toCancel.order]);
-        logger.info(`Cancelled ping pong order: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
+        logger.info(`Cancelled furthest order from price: ${toCancel.side} ${toCancel.amount} at ${toCancel.price}`);
 
         // and add a new one at the top, closer to the price
-        const pricePlusStep = toCancel.side === 'buy' ? parseFloat(ticker.bid) - step : parseFloat(ticker.ask) + step;
-        orders.push(await placeLimitOrder(context, toCancel.side, pricePlusStep, toCancel.amount, p.tag));
-        logger.info(`Placed a new order: ${toCancel.side} ${toCancel.amount} at ${toCancel.pricePlusStep}`);
-        // keep it in order
+        const price = orders[0].side === 'buy' ? orders[0].price + stepSize : orders[0].price - stepSize;
+        orders.push(await placeLimitOrder(context, toCancel.side, price, toCancel.amount, p.tag));
+        logger.info(`Replaced with: ${toCancel.side} ${toCancel.amount} at ${price}`);
+    
         return cleanOrderList(orders);
     }
+
+    // do nothing
+    return orders;
 }
 
 /**
@@ -191,6 +171,7 @@ module.exports = async (context, startingPings, startingPongs, p, autoBalance) =
             pings = [];
             pongs = [];
         }
+
 
         // Check the pings
         if (pings.length) {
@@ -256,12 +237,14 @@ module.exports = async (context, startingPings, startingPongs, p, autoBalance) =
         }
 
         if(autoBalance === 'track') {
-            const way = p.bidDistance < p.askDistance;
-            if (way) {
-                pings = await trackPrice(context, p, pings, p.bidDistance);
+            pings = await trackPrice(context, p, pings, p.pingStep, p.bidDistance);
+            pongs = await trackPrice(context, p, pongs, p.pongStep, p.askDistance);
+            //const way = p.bidDistance < p.askDistance;
+            /*if (way) {
+                pings = await trackPrice(context, p, pings, p.pingStep, p.bidDistance);
             } else {
-                pongs = await trackPrice(context, p, pongs, p.askDistance);
-            }
+                pongs = await trackPrice(context, p, pongs, p.pongStep, p.askDistance);
+            }*/
         }
 
         // wait for a bit before deciding what to do next
