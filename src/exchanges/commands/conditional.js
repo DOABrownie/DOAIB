@@ -91,7 +91,8 @@ async function positionConditions(context, condition, value) {
 
 
     // Get the open position
-    const position = await ex.positionSize(symbol);
+    const wrongPosition = await ex.positionSize(symbol);
+    const position = wrongPosition * 10;
     const target = parseFloat(value);
     const unPnl = await ex.unrealizedPnl();
     const unPnlPer = (unPnl[0].floatingPl/position) * 100;
