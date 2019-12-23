@@ -97,7 +97,7 @@ async function positionConditions(context, condition, value) {
     const unPnl = await ex.unrealizedPnl();
     const unPnlPer = (unPnl[0].floatingPl/position) * 100;
     logger.progress(`Current position size is ${position}`);
-    logger.progress('your current PNL is ${unPnlPer}');
+    logger.progress(`your current PNL is: ${unPnlPer}`);
 
     // Test agains Unrealized PNL
     if (condition === 'inProfit') {
