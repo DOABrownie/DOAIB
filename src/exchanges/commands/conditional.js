@@ -94,28 +94,28 @@ async function positionConditions(context, condition, value) {
     const position = await ex.positionSize(symbol);
     const target = parseFloat(value);
     const unPnl = await ex.unrealizedPnl();
-    const fixed = unPnl[0].floatingPl.toFixed(6);
+    const unPnlPer = (unPnl[0].floatingPl/position) * 100;
     logger.progress(`Current position size is ${position}`);
 
     // Test agains Unrealized PNL
     if (condition === 'inProfit') {
-        logger.progress(`Current UnPNL: ${fixed}`);
-        return unPnl > 0;
+        logger.progress(`Current UnPNL: ${unPnlPer}`);
+        return unPnlPer > 0;
     }
 
     if (condition === 'inLoss') {
-        logger.progress(`Current UnPNL: ${fixed}`);
-        return unPnl < 0;
+        logger.progress(`Current UnPNL: ${unPnlPer}`);
+        return unPnlPer < 0;
     }
 
     if (condition === 'inProfitBy') {
-        logger.progress(`Current UnPNL: ${fixed}, target UnPNL: ${target}`);
-        return unPnl > target;
+        logger.progress(`Current UnPNL: ${unPnlPer}, target UnPNL: ${target}`);
+        return unPnlPer > target;
     }
 
     if (condition === 'inLossBy') {
-        logger.progress(`Current UnPNL: ${fixed}, target UnPNL: ${target}`);
-        return unPnl < target;
+        logger.progress(`Current UnPNL: ${unPnlPer}, target UnPNL: ${target}`);
+        return unPnlPer < target;
     }
 
     // Test against the position size
