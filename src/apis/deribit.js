@@ -22,7 +22,7 @@ class DeribitApi extends ApiInterface {
         super(key, secret);
 
             // the endpoint
-            this.url = 'https://www.deribit.com';
+            this.url = 'https://www.deribit.com'; 
 
         // Keep hold of the API key and secret
         this.key = key;
